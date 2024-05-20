@@ -29,6 +29,7 @@ public class IPCamFrame extends CanvasFrame {
     private final String host;
     private final String port;
     private final File talchwiFile;
+    private final Java2DFrameConverter paintConverter = new Java2DFrameConverter();
 
     public IPCamFrame(String host, String port, File talchwiFile) {
         super("IP Cam Viewer");
@@ -53,12 +54,9 @@ public class IPCamFrame extends CanvasFrame {
     }
 
     public void setFrameData(BufferedImage bufferedImage) {
-        Frame frameData;
-        try (Java2DFrameConverter paintConverter = new Java2DFrameConverter()) {
-            frameData = paintConverter.getFrame(bufferedImage);
-        }
-
+        Frame frameData  = paintConverter.getFrame(bufferedImage);
         if(frameData == null) { return; }
+
         this.showImage(frameData);
     }
 
