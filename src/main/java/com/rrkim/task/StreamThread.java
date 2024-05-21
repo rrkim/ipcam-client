@@ -1,11 +1,11 @@
 package com.rrkim.task;
 
+import com.rrkim.constant.RequestMethod;
 import com.rrkim.dto.CameraIdentity;
+import com.rrkim.dto.IPCamSecureKeyResponse;
 import com.rrkim.frame.IPCamFrame;
 import com.rrkim.utility.*;
 import org.apache.commons.codec.DecoderException;
-import org.bytedeco.javacv.Frame;
-import org.bytedeco.javacv.Java2DFrameConverter;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -19,6 +19,8 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class StreamThread extends Thread {
 
@@ -39,19 +41,24 @@ public class StreamThread extends Thread {
     }
 
     private void getStreamVideo() throws IOException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, DecoderException, InvalidKeySpecException {
-        HttpURLConnection streamConnection = getHttpUrlConnection(ipCamFrame.getStreamUrl());
+        HttpURLConnection streamConnection = getHttpUrlConnection(ipCamFrame.getStreamUrl(), RequestMethod.GET.name());
 
         try {
-            HttpURLConnection getSecureKeyConnection = getHttpUrlConnection(ipCamFrame.getSecureKeyUrl());
-            String secureKeyResponseString = HttpUtility.getHttpResponse(getSecureKeyConnection);
-
-            SecureKey secureKey = JsonUtility.convertObject(secureKeyResponseString, SecureKey.class);
-            String secureKeyString = secureKey.getSecureKey();
-
             String tci = FileUtility.getText(ipCamFrame.getTalchwiFile());
             String decodedTciString = StringUtility.decodeBase64(tci);
-            CameraIdentity cameraIdentity = JsonUtility.convertObject(decodedTciString, CameraIdentity.class);
+            CameraIdentity cameraIdentity = ObjectUtility.convertObject(decodedTciString, CameraIdentity.class);
+            String deviceId = cameraIdentity.getDeviceId();
             String privateKey = cameraIdentity.getCredential();
+
+            Map<String, Object> paramMap = new HashMap<>();
+            paramMap.put("deviceId", deviceId);
+
+            HttpURLConnection getSecureKeyConnection = getHttpUrlConnection(ipCamFrame.getSecureKeyUrl(), RequestMethod.POST.name());
+            String secureKeyResponseString = HttpUtility.getHttpResponse(getSecureKeyConnection, paramMap);
+
+            IPCamSecureKeyResponse ipCamSecureKeyResponse = ObjectUtility.convertObject(secureKeyResponseString, IPCamSecureKeyResponse.class);
+            SecureKey secureKey = ObjectUtility.convertObject(ipCamSecureKeyResponse.getData(), SecureKey.class);
+            String secureKeyString = secureKey.getSecureKey();
 
             String symmetricKey = RsaUtility.decryptData(secureKeyString, privateKey);
             System.out.println("symmetricKey = " + symmetricKey);
@@ -70,8 +77,8 @@ public class StreamThread extends Thread {
         }
     }
 
-    private HttpURLConnection getHttpUrlConnection(String path) throws IOException {
+    private HttpURLConnection getHttpUrlConnection(String path, String method) throws IOException {
         String url = String.format("http://%s:%s%s", ipCamFrame.getHost(), ipCamFrame.getPort(), path);
-        return HttpUtility.getHttpUrlConnection(url, "GET");
+        return HttpUtility.getHttpUrlConnection(url, method);
     }
 }
