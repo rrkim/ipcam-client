@@ -61,12 +61,30 @@ public class StreamThread extends Thread {
             String secureKeyString = secureKey.getSecureKey();
 
             String symmetricKey = RsaUtility.decryptData(secureKeyString, privateKey);
-            System.out.println("symmetricKey = " + symmetricKey);
+            //System.out.println("symmetricKey = " + symmetricKey);
 
             while(true) {
+                long allStartTime = System.currentTimeMillis();
+                long startTime = System.currentTimeMillis();
                 String encodedFrameString = HttpUtility.getHttpResponse(streamConnection, '\0');
-                byte[] frameBytes = AesUtility.decryptData(encodedFrameString, symmetricKey);
+                long endTime = System.currentTimeMillis();
+                long elapsedTime = endTime - startTime;
+                ////System.out.println("network elapsedTime = " + elapsedTime);
 
+                startTime = System.currentTimeMillis();
+                byte[] frameBytes = AesUtility.decryptData(encodedFrameString, symmetricKey);
+                //byte[] frameBytes = StringUtility.decodeBase64Bytes(encodedFrameString);
+                endTime = System.currentTimeMillis();
+                elapsedTime = endTime - startTime;
+                ////System.out.println("decrypt elapsedTime = " + elapsedTime);
+                long allEndTime = System.currentTimeMillis();
+                long allElapsedTime = allEndTime - allStartTime;
+                long allElapsedTimeSec = allElapsedTime * 1000;
+                //System.out.println("allElapsedTimeSec = " + allElapsedTimeSec);
+                double frameRate = (double) 1000 / allElapsedTimeSec;
+
+                //System.out.println("allElapsedTime = " + allElapsedTime);
+                //System.out.println("frameRate = " + frameRate);
                 ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(frameBytes);
                 BufferedImage bufferedImage = ImageIO.read(byteArrayInputStream);
 
@@ -78,7 +96,7 @@ public class StreamThread extends Thread {
     }
 
     private HttpURLConnection getHttpUrlConnection(String path, String method) throws IOException {
-        String url = String.format("http://%s:%s%s", ipCamFrame.getHost(), ipCamFrame.getPort(), path);
+        String url = String.format("https://%s:%s%s", ipCamFrame.getHost(), ipCamFrame.getPort(), path);
         return HttpUtility.getHttpUrlConnection(url, method);
     }
 }
